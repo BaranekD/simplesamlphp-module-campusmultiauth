@@ -33,10 +33,29 @@
                         <div class="{% if muni_jvs %}grid__cell size--m--2-4 first-col{% else %}col-md-6{% endif %} wrap-col">
 
                         {% for component_configuration in wayf_config.components %}
+                            {% set show_component = true %}
+
                             {% if component_configuration.name == 'local_login' %}
-                                {% include '@campusmultiauth/includes/local-login.twig' with {'configuration': component_configuration} %}
+                                {% if discovery_hint is null or component_configuration.entityid in discovery_hint %}
+                                    {% include '@campusmultiauth/includes/local-login.twig' with {'configuration': component_configuration} %}
+                                {% else %}
+                                    {% set show_component = false %}
+                                {% endif %}
                             {% elseif component_configuration.name == 'individual_identities' %}
-                                {% include '@campusmultiauth/includes/individual-identities.twig' with {'configuration': component_configuration, 'component_index': loop.index0} %}
+                                {% if discovery_hint is null %}
+                                    {% include '@campusmultiauth/includes/individual-identities.twig' with {'configuration': component_configuration, 'component_index': loop.index0} %}
+                                {% else %}
+                                    {% set break = false %}
+                                    {% for idp in component_configuration.identities if not break %}
+                                        {% if idp.upstream_idp in discovery_hint %}
+                                            {% include '@campusmultiauth/includes/individual-identities.twig' with {'configuration': component_configuration, 'component_index': loop.index0} %}
+                                            {% set break = true %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if not break %}
+                                        {% set show_component = false %}
+                                    {% endif %}
+                                {% endif %}
                             {% elseif component_configuration.name == 'searchbox' %}
                                 {% include '@campusmultiauth/includes/searchbox.twig' with {'configuration': component_configuration, 'component_index': loop.index0} %}
                             {% endif %}

@@ -27,6 +27,8 @@ composer.phar
 /.phpunit.cache
 .phpunit.result.cache
 
+.idea/
+
 # Node
 logs
 *.log

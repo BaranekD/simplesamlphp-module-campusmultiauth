@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Firebase\JWT\JWT;
 use League\CommonMark\CommonMarkConverter;
 use SimpleSAML\Auth\State;
 use SimpleSAML\Configuration;
@@ -32,8 +33,19 @@ if (array_key_exists('aarc_idp_hint', $state)) {
     }
 }
 
+if (array_key_exists('aarc_discovery_hint_uri', $state)) {
+    $discoveryHint = JWT::jsonDecode(file_get_contents($state['aarc_discovery_hint_uri']));
+} elseif (array_key_exists('aarc_discovery_hint', $state)) {
+    $discoveryHint = JWT::jsonDecode($state['aarc_discovery_hint']);
+} else {
+    $discoveryHint = null;
+}
+
+$discoveryHint = Campusidp::getHintedIdps($discoveryHint);
+
 if (array_key_exists('idphint', $state)) {
     $parts = explode(',', $state['idphint']);
+
     if (count($parts) === 1) {
         $state['saml:idp'] = urldecode($parts[0]);
         Campusidp::delegateAuthentication($state[Campusidp::SP_SOURCE_NAME], $state);
@@ -141,6 +153,7 @@ $t->data['user_pass_source_name'] = $state[Campusidp::USER_PASS_SOURCE_NAME];
 $t->data['sp_source_name'] = $state[Campusidp::SP_SOURCE_NAME];
 $t->data['cookie_username'] = Campusidp::getCookie(Campusidp::COOKIE_USERNAME);
 $t->data['cookie_password'] = Campusidp::getCookie(Campusidp::COOKIE_PASSWORD);
+$t->data['discovery_hint'] = $discoveryHint;
 $t->data['searchbox_indexes'] = json_encode(array_values(array_filter(array_map(function ($config, $index) {
     return $config['name'] === 'searchbox' ? $index : null;
 }, $wayfConfig['components'], array_keys($wayfConfig['components'])), function ($a) {

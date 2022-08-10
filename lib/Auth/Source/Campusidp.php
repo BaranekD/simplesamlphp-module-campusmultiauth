@@ -11,6 +11,7 @@ use SimpleSAML\Auth\State;
 use SimpleSAML\Configuration;
 use SimpleSAML\Error;
 use SimpleSAML\Error\UnserializableException;
+use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\Module;
 use SimpleSAML\Module\core\Auth\UserPassBase;
 use SimpleSAML\Session;
@@ -89,6 +90,14 @@ class Campusidp extends Source
     {
         if (array_key_exists('aarc_idp_hint', $_REQUEST)) {
             $state['aarc_idp_hint'] = $_REQUEST['aarc_idp_hint'];
+        }
+
+        if (array_key_exists('aarc_discovery_hint', $_REQUEST)) {
+            $state['aarc_discovery_hint'] = $_REQUEST['aarc_discovery_hint'];
+        }
+
+        if (array_key_exists('aarc_discovery_hint_uri', $_REQUEST)) {
+            $state['aarc_discovery_hint_uri'] = $_REQUEST['aarc_discovery_hint_uri'];
         }
 
         if (array_key_exists('idphint', $_REQUEST)) {
@@ -218,6 +227,156 @@ class Campusidp extends Source
             return $item['image'];
         }
         return '';
+    }
+
+    public static function getHintedIdps($hint)
+    {
+        if ($hint === null) {
+            return null;
+        }
+
+        $metadataStorageHandler = MetaDataStorageHandler::getMetadataHandler();
+        $metadata = $metadataStorageHandler->getList();
+
+        $idps = [];
+
+        if (array_key_exists('include', $hint)) {
+            if (empty($hint['include'])) {
+                return [];
+            } else {
+                foreach ($hint['include'] as $key => $value) {
+                    if ($key === 'all_of') {
+                        $idps[] = self::getAllOfIdps($value, $metadata);
+                    } elseif ($key === 'any_of') {
+                        $idps[] = self::getAnyOfIdps($value, $metadata);
+                    }
+                }
+            }
+        } else {
+            $idps = $metadata;
+        }
+
+        if (!empty($hint['exclude'])) {
+            foreach ($hint['exclude'] as $key => $value) {
+                if ($key === 'all_of') {
+                    $idps = array_diff($idps, self::getAllOfIdps($value, $metadata));
+                } elseif ($key === 'any_of') {
+                    $idps = array_diff($idps, self::getAnyOfIdps($value, $metadata));
+                }
+            }
+        }
+
+        // TODO preferred
+
+        return $idps;
+    }
+
+    public static function getAllOfIdps($claim, $metadata)
+    {
+        $result = [];
+        $index = 0;
+
+        foreach ($claim as $key => $value) {
+            switch ($key) {
+                case 'all_of':
+                    $index === 0 ?
+                        array_push($result, self::getAllOfIdps($value, $metadata)) :
+                        $result = array_intersect($result, self::getAllOfIdps($value, $metadata));
+                    break;
+                case 'any_of':
+                    $index === 0 ?
+                        array_push($result, self::getAnyOfIdps($value, $metadata)) :
+                        $result = array_intersect($result, self::getAnyOfIdps($value, $metadata));
+                    break;
+                case 'entity_category':
+                    $index === 0 ?
+                        array_push($result, self::getEntityCategoryIdps($value, $metadata)) :
+                        $result = array_intersect($result, self::getEntityCategoryIdps($value, $metadata));
+                    break;
+                case 'assurance_certification':
+                    $index === 0 ?
+                        array_push($result, self::getAssuranceCertificationIdps($value, $metadata)) :
+                        $result = array_intersect($result, self::getAssuranceCertificationIdps($value, $metadata));
+                    break;
+                case 'registration_authority':
+                    $index === 0 ?
+                        array_push($result, self::getRegistrationAuthorityIdps($value, $metadata)) :
+                        $result = array_intersect($result, self::getRegistrationAuthorityIdps($value, $metadata));
+                    break;
+            }
+
+            $index++;
+        }
+
+        return $result;
+    }
+
+    public static function getAnyOfIdps($claim, $metadata)
+    {
+        $result = [];
+
+        foreach ($claim as $key => $value) {
+            switch ($key) {
+                case 'all_of':
+                    $result[] = self::getAllOfIdps($value, $metadata);
+                    break;
+                case 'any_of':
+                    $result[] = self::getAnyOfIdps($value, $metadata);
+                    break;
+                case 'entity_category':
+                    $result[] = self::getEntityCategoryIdps($value, $metadata);
+                    break;
+                case 'assurance_certification':
+                    $result[] = self::getAssuranceCertificationIdps($value, $metadata);
+                    break;
+                case 'registration_authority':
+                    $result[] = self::getRegistrationAuthorityIdps($value, $metadata);
+                    break;
+            }
+        }
+
+        return $result;
+    }
+
+    public static function getEntityCategoryIdps($value, $metadata)
+    {
+        // TODO
+        return [];
+    }
+
+    public static function getAssuranceCertificationIdps($value, $metadata)
+    {
+        // TODO
+        return [];
+    }
+
+    public static function getRegistrationAuthorityIdps($value, $metadata)
+    {
+        $result = [];
+
+        foreach ($metadata as $entityid => $idpMetadata) {
+            if (!empty($idpMetadata['RegistrationInfo']['registrationAuthority'])) {
+                switch (array_key_first($value)) {
+                    case 'contains':
+                        if (strpos($idpMetadata['RegistrationInfo']['registrationAuthority'], $value['contains']) !== false) {
+                            $result[] = $entityid;
+                        }
+                        break;
+                    case 'equals':
+                        if ($idpMetadata['RegistrationInfo']['registrationAuthority'] === $value['equals']) {
+                            $result[] = $entityid;
+                        }
+                        break;
+                    case 'matches':
+                        if (preg_match($value['matches'], $idpMetadata['RegistrationInfo']['registrationAuthority']) === 1) {
+                            $result[] = $entityid;
+                        }
+                        break;
+                }
+            }
+        }
+
+        return $result;
     }
 
     public static function isIdpInCookie($idps, $entityid)

@@ -17,17 +17,21 @@
     </h4>
 
     {% for idp in configuration.identities %}
-        <div class="{% if muni_jvs %}margin-bottom-12{% endif %}{% if loop.index0 >= configuration.number_shown %} idp-hidden d-none vhide{% endif %}">
-            <button class="btn-individual-identity btn {% if muni_jvs %}btn-primary btn-border color-{{ configuration.priority }} hover-none-{{ configuration.priority }}{% else %}btn-light shadow-sm {% if configuration.priority == 'primary' %}border-dark text-dark{% else %}border-muted text-muted{% endif %} border-2{% endif %}" type="submit" name="idpentityid" value="{{ idp.upstream_idp }}">
-                {% if muni_jvs %}<span class="no-uppercase color-{{ configuration.priority }} individual-identity-span-wrap">{% endif %}
-                    <img class="individual-identity-logo{% if not muni_jvs %} border-end border-2 border-{% if configuration.priority == 'primary' %}dark{% else %}muted{% endif %}{% endif %}" {% if idp.background_color is defined %}style="background-color: {{ idp.background_color }}"{% endif %} src="{{ idp.logo }}" alt=""/>
-                    <span class="idp-text">{{ '{campusmultiauth:sign_in_with}'|trans }}{{ " " }}{% if attribute(idp.name, currentLanguage) is defined %}{{ attribute(idp.name, currentLanguage) }}
-                        {% elseif idp.name is defined and idp.name is iterable and idp.name is not empty %}{{ idp.name | first }}
-                        {% else %}{{ idp.name }}
-                        {% endif %}</span>
-                {% if muni_jvs %}</span>{% endif %}
-            </button>
-        </div>
+        {% if discovery_hint is null or idp.upstream_idp in discovery_hint %}
+            <div class="{% if muni_jvs %}margin-bottom-12{% endif %}{% if loop.index0 >= configuration.number_shown %} idp-hidden d-none vhide{% endif %}">
+                <button class="btn-individual-identity btn {% if muni_jvs %}btn-primary btn-border color-{{ configuration.priority }} hover-none-{{ configuration.priority }}{% else %}btn-light shadow-sm {% if configuration.priority == 'primary' %}border-dark text-dark{% else %}border-muted text-muted{% endif %} border-2{% endif %}" type="submit" name="idpentityid" value="{{ idp.upstream_idp }}">
+                    {% if muni_jvs %}<span class="no-uppercase color-{{ configuration.priority }} individual-identity-span-wrap">{% endif %}
+                        <img class="individual-identity-logo{% if not muni_jvs %} border-end border-2 border-{% if configuration.priority == 'primary' %}dark{% else %}muted{% endif %}{% endif %}" {% if idp.background_color is defined %}style="background-color: {{ idp.background_color }}"{% endif %} src="{{ idp.logo }}" alt=""/>
+                        <span class="idp-text">{{ '{campusmultiauth:sign_in_with}'|trans }}{{ " " }}{% if attribute(idp.name, currentLanguage) is defined %}{{ attribute(idp.name, currentLanguage) }}
+                            {% elseif idp.name is defined and idp.name is iterable and idp.name is not empty %}{{ idp.name | first }}
+                            {% else %}{{ idp.name }}
+                            {% endif %}</span>
+                    {% if muni_jvs %}</span>{% endif %}
+                </button>
+            </div>
+        {% else %}
+            {% set loop.index0 = loop.index0 - 1 %}
+        {% endif %}
     {% endfor %}
 
     <input type="hidden" name="authstate" value="{{ authstate }}" />

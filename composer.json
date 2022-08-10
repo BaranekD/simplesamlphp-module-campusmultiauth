@@ -16,7 +16,8 @@
     "simplesamlphp/composer-module-installer": "~1.0",
     "simplesamlphp/simplesamlphp": "^1.19",
     "league/commonmark": "^1.0",
-    "ext-intl": "*"
+    "ext-intl": "*",
+    "firebase/php-jwt": "^6.3"
   },
   "config": {
     "allow-plugins": {
